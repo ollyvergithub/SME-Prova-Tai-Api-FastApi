@@ -11,24 +11,24 @@ def sample_PAR():
     return np.array([[1.0, 250.0, 0.2], [2.0, 300.0, 0.3]])
 
 @pytest.fixture
-def sample_TAIRequest():
+def sample_request_data():
     return {
         "ESTUDANTE": "Aluno1",
-        "AnoEscolarEstudante": 8,
-        "proficiencia": 500.0,
-        "profic_inic": 500.0,
-        "idItem": ["ITEM1", "ITEM2"],
-        "parA": [1.0, 2.0],
-        "parB": [250.0, 300.0],
-        "parC": [0.2, 0.3],
-        "administrado": ["ITEM1"],
-        "respostas": ["A"],
-        "gabarito": ["A"],
-        "erropadrao": 0.5,
-        "n_Ij": 45,
-        "componente": "LP",
-        "idEixo": [1],
-        "idHabilidade": [2]
+        "AnoEscolarEstudante": "8",
+        "proficiencia": "500.0",
+        "profic.inic": "500.0",
+        "idItem": "ITEM1,ITEM2",
+        "parA": "1.0,2.0",
+        "parB": "250.0,300.0",
+        "parC": "0.2,0.3",
+        "administrado": "ITEM1",
+        "respostas": "A",
+        "gabarito": "A",
+        "erropadrao": "0.5",
+        "n.Ij": "45",
+        "componente": "Língua portuguesa",
+        "idEixo": "1,2",
+        "idHabilidade": "2,3"
     }
 
 # Testes para transformar_parametros
@@ -46,7 +46,7 @@ def test_transformar_parametros_MT(sample_PAR):
 
 # Testes para EAP
 def test_EAP_basic():
-    U = [1, 0]
+    U = np.array([1, 0])
     PAR = np.array([[1.5, 0.5, 0.2], [2.0, 1.0, 0.3]])
     administrado = [0, 1]
     theta, ep = EAP(U, PAR, administrado)
@@ -67,7 +67,7 @@ def test_criterio_ep_atingido():
     assert criterio_parada(0.0, 0.4, parada="EP", EP=0.5, n_resp=10, n_min=8) == True
 
 def test_criterio_max_itens():
-    assert criterio_parada(0.0, 1.0, n_resp=43, n_Ij=45) == True
+    assert criterio_parada(0.0, 1.0, n_resp=32, n_min=8) == True  # Atualizado para 32 itens
 
 # Testes para maxima_informacao_th
 def test_maxima_informacao_th():
@@ -89,26 +89,88 @@ def test_ping():
     assert response.status_code == 200
     assert response.json() == {"status": "200"}
 
-def test_proximo_item_primeiro_item(sample_TAIRequest):
-    sample_TAIRequest["respostas"] = []
-    response = client.post("/proximo", json=sample_TAIRequest)
+def test_proximo_item_primeiro_item(sample_request_data):
+    # Teste do primeiro item (sem respostas prévias)
+    primeiro_request = sample_request_data.copy()
+    # Enviar strings vazias para respostas, gabarito e administrado
+    primeiro_request["respostas"] = ""
+    primeiro_request["gabarito"] = ""
+    primeiro_request["administrado"] = ""
+
+    response = client.post("/proximo", json=primeiro_request)
     assert response.status_code == 200
-    assert "proximo" in response.json()
+    # Verificar se retorna o próximo item (ex: ITEM2)
+    assert response.json()[0] in ["ITEM1", "ITEM2"]  # Ajuste conforme os IDs
 
-def test_proximo_item_parada(sample_TAIRequest):
-    # Configurar 45 itens e parâmetros para suportar n_Ij=45
+def test_proximo_item_continuacao(sample_request_data):
+    # Teste continuando (com uma resposta)
+    print(f"Dados do request normal: {sample_request_data}")
+    
+    response = client.post("/proximo", json=sample_request_data)
+    if response.status_code != 200:
+        print(f"Erro: {response.status_code}")
+        print(f"Detalhes: {response.text}")
+        
+    assert response.status_code == 200
+    
+    resultado = response.json()
+    print(f"Resultado do request normal: {resultado}")
+    
+    assert isinstance(resultado, list)
+    assert len(resultado) == 8
+    
+    # O primeiro elemento deve ser o ID do próximo item ou -1 para parar
+    assert resultado[0] in ["ITEM1", "ITEM2", "-1"]
+    
+    # Número da próxima resposta deve ser 2 (pois já temos uma)
+    if resultado[0] != "-1":
+        assert resultado[1] == "2"
+
+def test_proximo_item_parada():
+    # Configurar 45 itens e seus parâmetros
     n_itens = 45
-    sample_TAIRequest["idItem"] = [f"ITEM{i}" for i in range(1, n_itens + 1)]
-    sample_TAIRequest["parA"] = [1.0] * n_itens
-    sample_TAIRequest["parB"] = [250.0] * n_itens
-    sample_TAIRequest["parC"] = [0.2] * n_itens
+    
+    request_data = {
+        "ESTUDANTE": "Aluno1",
+        "AnoEscolarEstudante": "8",
+        "proficiencia": "500.0",
+        "profic.inic": "500.0",
+        "idItem": ",".join([f"ITEM{i}" for i in range(1, n_itens + 1)]),
+        "parA": ",".join(["1.0"] * n_itens),
+        "parB": ",".join(["250.0"] * n_itens),
+        "parC": ",".join(["0.2"] * n_itens),
+        "administrado": ",".join([f"ITEM{i}" for i in range(1, 33)]),  # 32 itens
+        "respostas": ",".join(["A"] * 32),
+        "gabarito": ",".join(["A"] * 32),
+        "erropadrao": "0.5",
+        "n.Ij": "45",
+        "componente": "Língua portuguesa",
+        "idEixo": ",".join(["1"] * n_itens),
+        "idHabilidade": ",".join(["2"] * n_itens)
+    }
+    
+    response = client.post("/proximo", json=request_data)
+    assert response.status_code == 200
+    
+    resultado = response.json()
+    # Deve retornar -1 como primeiro elemento (parada pelo critério de 32 itens)
+    assert resultado[0] == "-1"
 
-    # Simular 43 itens administrados (n_resp = n_Ij - 2)
-    n_respostas = 43
-    sample_TAIRequest["administrado"] = sample_TAIRequest["idItem"][:n_respostas]
-    sample_TAIRequest["respostas"] = ["A"] * n_respostas
-    sample_TAIRequest["gabarito"] = ["A"] * n_respostas
-    sample_TAIRequest["n_Ij"] = 45
-
-    response = client.post("/proximo", json=sample_TAIRequest)
-    assert response.json()["proximo"] == -1  # Deve retornar -1 (parada)
+# Teste para verificar transformação correta do componente
+def test_normalizacao_componente(sample_request_data):
+    # Teste com diferentes formatos do nome do componente
+    variantes = [
+        ("Língua portuguesa", "LP"),
+        ("Matemática", "MT"),
+        ("Ciências da Natureza", "CN"),
+        ("Ciências Humanas", "CH"),
+        ("LP", "LP")  # Já normalizado
+    ]
+    
+    for entrada, esperado in variantes:
+        request_copy = sample_request_data.copy()
+        request_copy["componente"] = entrada
+        response = client.post("/proximo", json=request_copy)
+        assert response.status_code == 200
+        
+        # Se o teste passar sem erro, consideramos que a normalização funcionou

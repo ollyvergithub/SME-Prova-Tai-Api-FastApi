@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 import numpy as np
 
 app = FastAPI()
@@ -185,86 +185,108 @@ def proximo_item_criterio(INFO, administrado):
     print("=== Fim do proximo_item_criterio ===\n")
     return int(pos)
 
+# ... (Manter todas as outras funções como EAP, criterio_parada, etc. e adcionar as seguintes)
+def parse_str_list(value: str, cast_type=float):
+    """Transforma string separada por vírgula em lista do tipo desejado"""
+    if not value:
+        return []
+    return [cast_type(v.strip()) for v in value.split(",")]
+
+def normalizar_componente(componente: str) -> str:
+    """Mapeia o nome do componente para o código esperado"""
+    mapa = {
+        "Língua portuguesa": "LP",
+        "Matemática": "MT",
+        "Ciências da Natureza": "CN",
+        "Ciências Humanas": "CH"
+    }
+    return mapa.get(componente.strip(), componente.strip())
+
 
 @app.post("/proximo")
-def proximo_item(request: TAIRequest):
-    print("\n=== Iniciando endpoint /proximo ===")
-    print(f"Payload recebido: {request}")
+async def proximo_item(request: Request):
+    body = await request.json()
 
-    respostas = np.array([1 if r == g else 0 for r, g in zip(request.respostas, request.gabarito)])
+    try:
+        # Conversão dos campos do payload recebido
+        ESTUDANTE = body["ESTUDANTE"]
+        AnoEscolarEstudante = int(body["AnoEscolarEstudante"])
+        proficiencia = float(body["proficiencia"])
+        profic_inic = float(body["profic.inic"])
+        idItem = body["idItem"].split(",")
+        parA = parse_str_list(body["parA"])
+        parB = parse_str_list(body["parB"])
+        parC = parse_str_list(body["parC"])
+        # Filtrar strings vazias para administrado, respostas e gabarito
+        administrado = [a for a in body["administrado"].split(",") if a]
+        respostas = [r for r in body["respostas"].split(",") if r]
+        gabarito = [g for g in body["gabarito"].split(",") if g]
+        if len(respostas) != len(gabarito):
+            raise HTTPException(status_code=400, detail="respostas e gabarito devem ter o mesmo tamanho")
+        erropadrao = float(body["erropadrao"])
+        n_Ij = int(body["n.Ij"])
+        componente = normalizar_componente(body["componente"])
+        idEixo = parse_str_list(body["idEixo"], int)
+        idHabilidade = parse_str_list(body["idHabilidade"], int)
 
-    # ============= CORREÇÃO =============
-    # Obter índices dos itens administrados NA ORDEM ORIGINAL DE idItem
-    administrado = [
-        idx for idx, item in enumerate(request.idItem)
-        if item in set(request.administrado)
-    ]
-    # ====================================
+        # Gabarito corrigido (0/1)
+        respostas_corrigidas = np.array([1 if r == g else 0 for r, g in zip(respostas, gabarito)])
 
-    PAR = np.column_stack((request.parA, request.parB, request.parC))
+        administrado_idx = [idx for idx, item in enumerate(idItem) if item in set(administrado)]
+        PAR = np.column_stack((parA, parB, parC))
+        PAR = transformar_parametros(PAR, componente)
 
-    # Transformação dos parâmetros com base no componente
-    PAR = transformar_parametros(PAR, request.componente)
-    print(f"PAR transformado: {PAR}")
-
-    print(f"Respostas corrigidas: {respostas}")
-    print(f"Índices dos itens administrados (ORDEM ORIGINAL): {administrado}")
-    print(f"Parâmetros dos itens (PAR): {PAR}")
-
-    if len(respostas) == 0:
-        print("Primeiro item do teste")
-        theta_est_ep = (request.profic_inic - 249.985) / 55.093
-        INFO = maxima_informacao_th(theta_est_ep, PAR)
-        pos = proximo_item_criterio(INFO, administrado)
-        proximo = request.idItem[pos]
-        return {
-            "proximo": proximo,
-            "n_resp": 1,
-            "pos": int(pos),  # Convertendo para int
-            "parA": float(request.parA[pos]),  # Convertendo para float
-            "parB": float(request.parB[pos]),  # Convertendo para float
-            "parC": float(request.parC[pos]),  # Convertendo para float
-            "theta_est": float(request.profic_inic),  # Convertendo para float
-            "theta_ep": None,
-        }
-    else:
-        print(f"Calculando proficiência para {len(respostas)} respostas")
-        PAR_adm = PAR[administrado, :]
-        theta_est_ep = EAP(respostas, PAR_adm, administrado)
-        parar = criterio_parada(
-            theta_est_ep[0], theta_est_ep[1], Area=request.componente, AnoEscolar=request.AnoEscolarEstudante, n_resp=len(respostas), n_Ij=request.n_Ij
-        )
-        if not parar:
-            INFO = maxima_informacao_th(theta_est_ep[0], PAR)
-            pos = proximo_item_criterio(INFO, administrado)
-            proximo = request.idItem[pos]
-
-            # Usar PAR[pos] para obter parA, parB TRANSFORMADOS
-            parA_transformado = PAR[pos, 0]
-            parB_transformado = PAR[pos, 1]
-
-            return {
-                "proximo": proximo,
-                "n_resp": len(respostas) + 1,
-                "pos": int(pos),  # Convertendo para int
-                "parA": float(parA_transformado),  # Valor transformado
-                "parB": float(parB_transformado),  # Valor transformado
-                "parC": float(request.parC[pos]),  # Convertendo para float
-                "theta_est": float(theta_est_ep[0] * 55.093 + 249.985),  # Convertendo para float
-                "theta_ep": float(theta_est_ep[1] * 55.093),  # Convertendo para float
-            }
+        if len(respostas_corrigidas) == 0:
+            # PRIMEIRA RESPOSTA
+            theta_est_ep = (profic_inic - 249.985) / 55.093
+            INFO = maxima_informacao_th(theta_est_ep, PAR)
+            pos = proximo_item_criterio(INFO, administrado_idx)
+            return [
+                idItem[pos],
+                "1",
+                str(pos),
+                str(round(PAR[pos, 0], 6)),
+                str(round(PAR[pos, 1], 14)),
+                str(round(parC[pos], 3)),
+                str(round(profic_inic, 13)),
+                "null"
+            ]
         else:
-            print("Critério de parada atingido")
-            return {
-                "proximo": -1,
-                "n_resp": len(respostas),
-                "pos": None,
-                "parA": None,
-                "parB": None,
-                "parC": None,
-                "theta_est": float(theta_est_ep[0] * 55.093 + 249.985),  # Convertendo para float
-                "theta_ep": float(theta_est_ep[1] * 55.093),  # Convertendo para float
-            }
+            # ESTIMA PROFICIÊNCIA
+            PAR_adm = PAR[administrado_idx, :]
+            theta_est, theta_ep = EAP(respostas_corrigidas, PAR_adm, administrado_idx)
+
+            parar = criterio_parada(
+                theta_est, theta_ep, Area=componente, AnoEscolar=AnoEscolarEstudante,
+                n_resp=len(respostas_corrigidas), n_Ij=n_Ij
+            )
+
+            if not parar:
+                INFO = maxima_informacao_th(theta_est, PAR)
+                pos = proximo_item_criterio(INFO, administrado_idx)
+                return [
+                    idItem[pos],
+                    str(len(respostas_corrigidas) + 1),
+                    str(pos),
+                    str(round(PAR[pos, 0], 6)),
+                    str(round(PAR[pos, 1], 14)),
+                    str(round(parC[pos], 3)),
+                    str(round(theta_est * 55.093 + 249.985, 13)),
+                    str(round(theta_ep * 55.093, 13))
+                ]
+            else:
+                return [
+                    "-1",
+                    str(len(respostas_corrigidas)),
+                    "null",
+                    "null",
+                    "null",
+                    "null",
+                    str(round(theta_est * 55.093 + 249.985, 13)),
+                    str(round(theta_ep * 55.093, 13))
+                ]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/pingR")
 def ping():
@@ -272,4 +294,4 @@ def ping():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
