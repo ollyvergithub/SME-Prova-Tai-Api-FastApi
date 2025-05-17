@@ -16,13 +16,21 @@ Escopo: Recebe respostas e parâmetros, estima proficiência, verifica critério
 
 ```
 prova-tai-api/
-├── .gitignore                # Arquivos e pastas ignorados pelo Git
-├── docker-compose.yaml       # Orquestração de containers com Docker
-├── Dockerfile                # Imagem da aplicação
-├── main.py                   # Ponto de entrada da aplicação FastAPI
-├── test_tai.py               # Arquivo de testes com Pytest
-├── requirements.txt          # Dependências do projeto
-└── README.md                 # Documentação do projeto (este arquivo)
+├── .gitignore                 # Arquivos e pastas ignorados pelo Git
+├── docker-compose.yaml        # Orquestração de containers com Docker
+├── Dockerfile                 # Imagem da aplicação
+├── main.py                    # Ponto de entrada principal
+├── requirements.txt           # Dependências do projeto
+└── README.md                  # Documentação do projeto (este arquivo)
+├── routers
+│   └── api.py                 # Rotas da API
+├── services
+│   └── adaptive_testing.py    # Lógica de negócio (EAP, seleção de itens, etc.)
+├── tests/                     
+│   └── test_tai.py            # Testes
+└── utils
+    └── helpers.py            # Funções auxiliares
+
 ```
 
 ## 🚀 Como Executar

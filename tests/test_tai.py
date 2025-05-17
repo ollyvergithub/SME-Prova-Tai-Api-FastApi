@@ -1,9 +1,23 @@
 import warnings
+import sys
+import os
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# Adicione o caminho do projeto ao Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pytest
 from fastapi.testclient import TestClient
-from main import app, transformar_parametros, EAP, parar_teste, criterio_parada, maxima_informacao_th, proximo_item_criterio
+# Por:
+from main import app
+from services.adaptive_testing import (
+    transformar_parametros,
+    EAP,
+    parar_teste,
+    criterio_parada,
+    maxima_informacao_th,
+    proximo_item_criterio
+)
 import numpy as np
 
 client = TestClient(app)
