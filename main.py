@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request, Body
-from pydantic import BaseModel
-from typing import Any, Dict, List
+from typing import Any, Dict
 import numpy as np
 
 app = FastAPI(
@@ -8,24 +7,6 @@ app = FastAPI(
     description="API para testes adaptativos com parâmetros complexos",
     version="1.0.0"
 )
-
-class TAIRequest(BaseModel):
-    ESTUDANTE: str
-    AnoEscolarEstudante: int
-    proficiencia: float
-    profic_inic: float
-    idItem: List[str]
-    parA: List[float]
-    parB: List[float]
-    parC: List[float]
-    administrado: List[str]
-    respostas: List[str]
-    gabarito: List[str]
-    erropadrao: float
-    n_Ij: int
-    componente: str
-    idEixo: List[int]
-    idHabilidade: List[int]
 
 def transformar_parametros(PAR, componente):
     """
