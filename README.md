@@ -1,7 +1,8 @@
-# 📘 Prova TAI API
+# 📘 SME Próximo API
 
-API desenvolvida com [FastAPI](https://fastapi.tiangolo.com/) para fins avaliativos da Prova TAI.
+API desenvolvida com [FastAPI](https://fastapi.tiangolo.com/) utilizada na Prova Saberes e Aprendizagens.
 
+Escopo: Recebe respostas e parâmetros, estima proficiência, verifica critério de parada e retorna o próximo item.
 
 ## 🥞 Stack
 - [FastApi 0.115.12](https://fastapi.tiangolo.com/)

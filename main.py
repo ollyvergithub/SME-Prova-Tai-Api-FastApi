@@ -1,9 +1,13 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from pydantic import BaseModel
-from typing import List
+from typing import Any, Dict, List
 import numpy as np
 
-app = FastAPI()
+app = FastAPI(
+    title="API Adaptativa",
+    description="API para testes adaptativos com parâmetros complexos",
+    version="1.0.0"
+)
 
 class TAIRequest(BaseModel):
     ESTUDANTE: str
@@ -202,9 +206,39 @@ def normalizar_componente(componente: str) -> str:
     }
     return mapa.get(componente.strip(), componente.strip())
 
+# Configuração do exemplo para documentação
+PROXIMO_ITEM_DOCS = {
+    "summary": "Seleciona próximo item do teste adaptativo",
+    "description": "Recebe respostas e parâmetros para estimar proficiência e selecionar próximo item",
+    "response_description": "Array com informações do próximo item ou resultado final"
+}
 
-@app.post("/proximo")
-async def proximo_item(request: Request):
+EXEMPLO_PAYLOAD = Body(
+    ...,
+    example={
+        "ESTUDANTE": "Aluno1",
+        "AnoEscolarEstudante": "8",
+        "proficiencia": "500.0",
+        "profic.inic": "500.0",
+        "idItem": "ITEM1,ITEM2",
+        "parA": "1.0,2.0",
+        "parB": "250.0,300.0",
+        "parC": "0.2,0.3",
+        "administrado": "ITEM1",
+        "respostas": "A",
+        "gabarito": "A",
+        "erropadrao": "0.5",
+        "n.Ij": "45",
+        "componente": "Língua portuguesa",
+        "idEixo": "1,2",
+        "idHabilidade": "2,3"
+    }
+)
+@app.post("/proximo", **PROXIMO_ITEM_DOCS)
+async def proximo_item(
+    request: Request,
+    payload: Dict[str, Any] = EXEMPLO_PAYLOAD
+):
     body = await request.json()
 
     try:

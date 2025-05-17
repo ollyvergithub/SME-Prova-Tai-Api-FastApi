@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 import pytest
 from fastapi.testclient import TestClient
 from main import app, transformar_parametros, EAP, parar_teste, criterio_parada, maxima_informacao_th, proximo_item_criterio
