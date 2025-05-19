@@ -73,3 +73,5 @@ Documentação automática:
 python -m pytest
 ```
 
+### 📄 Licença
+Este projeto está sob a licença (sua licença) - veja o arquivo [LICENSE](./LICENSE) para detalhes.
