@@ -4,7 +4,7 @@ def parse_str_list(value: str, cast_type=float):
         return []
     return [cast_type(v.strip()) for v in value.split(",")]
 
-def normalizar_componente(componente: str) -> str:
+def normalizar_componente(componente: str) -> str: 
     """Mapeia o nome do componente para o código esperado"""
     mapa = {
         "Língua portuguesa": "LP",
