@@ -1,7 +1,7 @@
 import warnings
 import sys
 import os
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 # Adicione o caminho do projeto ao Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
